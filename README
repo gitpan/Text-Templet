@@ -1,0 +1,38 @@
+Text/Templet version 2.00
+=======================
+
+Text::Templet implements a very efficient and fast template 
+processor that allows you to embed Perl variables and snippets of Perl 
+code directly into HTML, XML or any other text. Text::Templet is uniquie 
+in that it employs Perl's eval() function for functionality that other 
+template systems implement using regular expressions, introducing a whole 
+new syntax, with complexity proportional to the system's sophistication. 
+Text::Templet uses Perl syntax for all its functionality, which greatly 
+simplifies and speeds up processing of the template.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+Requires Perl version 5.6 or later
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2004,2005 Denis Petrov - www.denispetrov.com
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
