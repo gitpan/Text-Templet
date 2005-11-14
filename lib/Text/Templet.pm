@@ -1,5 +1,5 @@
 # Copyright (c) 2004, 2005 Denis Petrov
-# $Id: Templet.pm,v 2.1 2005/07/02 23:29:37 cvs Exp $
+# $Id: Templet.pm,v 2.3 2005/11/14 03:19:08 cvs Exp $
 # Distributed under the terms of the GNU General Public License
 #
 # Templet Template Processor
@@ -16,7 +16,7 @@ BEGIN {
     use Exporter   ();
     our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-    ($VERSION) = '$Revision: 2.1 $' =~ /\$Revision: (\S+)/;
+    ($VERSION) = '$Revision: 2.3 $' =~ /\$Revision: (\S+)/;
     
     @ISA         = qw(Exporter);
     @EXPORT      = qw( &Templet );
@@ -24,13 +24,17 @@ BEGIN {
     @EXPORT_OK   = qw( );
 }
 
-# variable names are strange to reduce the risk of them being used in a template
+### variable names are strange to reduce the risk of them being used in a template
 
 our @_tpl_parsed;
 
 our $_isect;
 
 our $_tpl_warning = '';
+
+### reference to the output function and to the output buffer
+our $_outf;
+our $_outt;
 
 sub _tpl_warn
 {
@@ -64,9 +68,13 @@ sub _count_lines
 sub Templet
 {
   my ($_caller_package,undef,undef) = caller;
-  
+
   ### Make Templet re-entrant by saving values of package variables
-  local(@_tpl_parsed,$_isect,$_tpl_warning);
+  local(@_tpl_parsed,$_isect,$_tpl_warning,$_outf,$_outt);
+
+  $_outt = '';
+  ### Return processed template in non-void context, otherwise print it
+  $_outf = defined(wantarray) ? sub{$_outt .= $_[0]} : sub{print @_};
 
   my $_label_regexp = "[a-zA-z_][a-zA-z0-9_]*";
 
@@ -167,7 +175,7 @@ sub Templet
       else
       {
           &_print_tpl_warning('text') if $_tpl_warning;
-          print( $_result );
+          &$_outf( $_result );
       }
     }
   }
@@ -178,7 +186,7 @@ sub Templet
  # print Dumper(%_labels);
 
 
-  return '';
+  return $_outt;
 }
 
 
@@ -198,7 +206,7 @@ B<Iterating through a list of items>
  $dataref = ["Money For Nothing","Communique","Sultans Of Swing"];
  $counter = 1;
 
- &Templet(<<'EOT'
+ Templet(<<'EOT'
  Content-type: text/html
 
  <body>
@@ -217,7 +225,7 @@ B<Conditional inclusion>
  use vars qw($super_user);
  $super_user = 1;
 
- &Templet(<<'EOT'
+ Templet(<<'EOT'
  Content-type: text/html
 
  <body>
@@ -240,11 +248,11 @@ B<Calling a Perl subroutine from inside the template>
      print "Hello, World!";
  }
 
- &Templet(<<'EOT'
+ Templet(<<'EOT'
  Content-type: text/html
 
  <body>
- <% &hello_world(); '' %>
+ <% hello_world(); '' %>
  </body>
  EOT
  );
@@ -258,11 +266,11 @@ B<Using subroutine return value as a label>
      return 'L1';
  }
 
- &Templet(<<'EOT'
+ Templet(<<'EOT'
  Content-type: text/html
 
  <body>
- <% &give_me_label(); %>
+ <% give_me_label(); %>
  This text will be omitted.
  <%L1%>
  </body>
@@ -279,7 +287,7 @@ B<A simple form>
  $title = &CGI::escapeHTML($title||'');
  $desc = &CGI::escapeHTML($desc||'');
 
- &Templet(<<'EOT'
+ Templet(<<'EOT'
  Content-type: text/html
 
  <body>
@@ -299,7 +307,7 @@ B<Saving output to a disk file>
  open( FILE, '>page.html' ) or warn("Unable to open file page.html: $!"), return 1;
  my $saved_stdout = select(*FILE);
 
- &Templet(<<'EOT'
+ Templet(<<'EOT'
  <body>
  Hello, World!
  </body>
@@ -309,12 +317,55 @@ B<Saving output to a disk file>
  select($saved_stdout);
  close FILE;
 
+B<Saving output to a variable>
+
+ use Text::Templet;
+
+ my $output = Templet(<<'EOT'
+ <body>
+ Hello, World!
+ </body>
+ EOT
+ );
+
+ print $output;
+
+B<Includes>
+
+ use Text::Templet;
+ use vars qw($title $text);
+ $title = 'Page Title';
+ $text = 'Page Body';
+
+ sub header
+ {
+   Templet('<html><head><title>$title</title></head><body>'); 
+   ''
+ }
+
+ sub footer
+ {
+   Templet('</body></html>');
+   ''
+ }
+
+
+ Templet(<<'EOT'
+ <% header %>
+ <h1>$title</h1>
+ <div>
+ $text
+ </div>
+ <% footer %>
+ EOT
+ );
+
 =head1 DESCRIPTION
 
 C<Text::Templet> is a Perl module implementing a very efficient
 and fast template processor that allows you to embed Perl
 variables and snippets of Perl code directly into HTML, XML or any
-other text. C<Text::Templet> is uniquie in that it employs Perl's
+other text. C<Text::Templet> is unique in that it employs Perl's
 eval() function for features that other template systems
 implement using regular expressions, introducing a whole new
 syntax, with complexity proportional to the system's
@@ -331,11 +382,12 @@ C<Text::Templet> into your own.
 
 When called, C<Templet()> applies a regular expression matching
 text enclosed within C<< <% %> >> to create a list of sections.
-These sections are then passed to the eval() function. Secions
+These sections are then passed to the eval() function. Sections
 containing text outside C<< <% %> >> ("Template text sections") are
-wrapped into double quotes and passed to eval() for variable
-expansion. The value returned by the eval() is then printed to the
-standard output.
+wrapped into double quotes and passed to C<eval()> for variable
+expansion. In void context, the value returned by the C<eval()> is
+printed to the standard output, otherwise it is appended to the return
+value stored in C<$_outt>.
 
 Sections with text inside C<< <% %> >> are handled in two different
 ways. If the text contains only alphanumeric characters without
@@ -365,7 +417,7 @@ The following variable names are used internally by
 C<Text::Templet> and will mask variables declared in your program, 
 making their values inaccessible in the template: C<%_labels>, 
 C<@_tpl_parsed>, C<$_tpl_warning>, C<$_label_regexp>, C<$_isect>,
-C<$_nsect>, C<$_sect_text>, C<$_save_sig>
+C<$_nsect>, C<$_sect_text>, C<$_save_sig>, C<$_outf>, C<$_outt>
 
 =head2 EXPORTS
 
@@ -396,7 +448,7 @@ using C<||> operator during the call to C<&CGI::escapeHTML> to assign an
 empty string to the variable if it evaluates to false.
 
 =item * Label names are case sensitive, and there must be no spaces
-anywhere between <% and %> for it to be interpreted as a label. All
+anywhere between C<< <% >> and C<< %> >> for it to be interpreted as a label. All
 labels in a template must have unique names.
 
 =item * C<Text::Templet> is compatible with mod_perl. However, make
@@ -409,10 +461,12 @@ functions from wrong files being called.
 =item * Watch the web server's error log closely when debugging
 your application. C<Text::Templet> posts a warning when there is
 something wrong with the template, including the line number of the
-beginning of the section where the error occured.
+beginning of the section where the error occurred.
 
-=item * Call print() from within C<< <% %> >> to append something
-to the output: C<< <% print "foo" %> >>.
+=item * Call C<&$_outf()> from within C<< <% %> >> to append something
+to the output: C<< <% &$_outf("foo") %> >>. This function takes one
+argument and will either send it to the standard output or append it
+to C<$_outt> depending on Templet's calling context.
 
 =item * To prevent C<Text::Templet> from trying to use the result
 of the processing in the template code section as a label name, add

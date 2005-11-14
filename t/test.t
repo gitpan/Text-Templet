@@ -25,16 +25,16 @@ sub switch1() {return 'C2';}
 ## Test::Harness bombs out if they are mixed together
 select(STDERR);
 
-ok(Templet('Hello, World!\t'),'');
-ok(Templet('$tv\t'),'');
-ok(Templet('Begin $tv End\t'),'');
-ok(Templet('<% print $tv; "" %>\t'),'');
-ok(Templet('Begin <% print $tv; "" %> End\t'),'');
-ok(Templet('<% "SKIP" %>This test has failed<%SKIP%>\t'),'');
-ok(Templet('Begin <% "SKIP" %>This test has failed<%SKIP%> End\t'),'');
-ok(Templet('<% $c = 0; %><%I1%>$c <% "I1" if ++$c < 10 %>\t'),'');
-ok(Templet('Begin <% $c = 0; %><%I1%>$c <% "I1" if ++$c < 10 %> End\t'),'');
-ok(Templet('<% print &sub1(); "" %>\t'),'');
-ok(Templet('Begin <% print &sub1(); "" %> End\t'),'');
-ok(Templet('<% &switch1() %><%C1%>Choice 1<%"END_SWITCH1"%><%C2%>Choice2<%END_SWITCH1%>\t'),'');
-ok(Templet('Begin <% &switch1() %><%C1%>Choice 1<%"END_SWITCH1"%><%C2%>Choice2<%END_SWITCH1%> End\t'),'');
+ok(Templet('Hello, World!'),'Hello, World!');
+ok(Templet('$tv'),$tv);
+ok(Templet('Begin $tv End'),"Begin $tv End");
+ok(Templet('<% &$_outf($tv); "" %>'),$tv);
+ok(Templet('Begin <% &$_outf($tv); "" %> End'),"Begin $tv End");
+ok(Templet('<% "SKIP" %>This test has failed<%SKIP%>'),'');
+ok(Templet('Begin <% "SKIP" %>This test has failed<%SKIP%> End'),'Begin  End');
+ok(Templet('<% $c = 0; %><%I1%>$c <% "I1" if ++$c < 10 %>'),'0 1 2 3 4 5 6 7 8 9 ');
+ok(Templet('Begin <% $c = 0; %><%I1%>$c <% "I1" if ++$c < 10 %> End'),'Begin 0 1 2 3 4 5 6 7 8 9  End');
+ok(Templet('<% &$_outf(sub1()); "" %>'),'Sub 1 Returns');
+ok(Templet('Begin <% &$_outf(&sub1()); "" %> End'),'Begin Sub 1 Returns End');
+ok(Templet('<% &switch1() %><%C1%>Choice 1<%"END_SWITCH1"%><%C2%>Choice2<%END_SWITCH1%>'),'Choice2');
+ok(Templet('Begin <% &switch1() %><%C1%>Choice 1<%"END_SWITCH1"%><%C2%>Choice2<%END_SWITCH1%> End'),'Begin Choice2 End');

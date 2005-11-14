@@ -3,7 +3,10 @@ Change log to Text::Templet (Formerly Magic.pm)
 For the most recent updates and source code for all versions,
 see http://www.denispetrov.com/magic/
 
-2.00
+2.1
+    * Updated POD text in the module
+
+2.0
 
     * Prepared Magic for inclusion to CPAN
     * Magic is now an independent project, hence major version
