@@ -7,7 +7,7 @@
 
 use Test;
 
-BEGIN { plan tests => 14 };
+BEGIN { plan tests => 16 };
 
 use Text::Templet;
 
@@ -19,11 +19,6 @@ $tv = "Test Variable";
 
 sub sub1() {return 'Sub 1 Returns';}
 sub switch1() {return 'C2';}
-
-## send script output to STDERR to keep it out of STDOUT
-## which is used by diagnostics printed from ok()
-## Test::Harness bombs out if they are mixed together
-select(STDERR);
 
 ok(Templet('Hello, World!'),'Hello, World!');
 ok(Templet('$tv'),$tv);
@@ -38,3 +33,5 @@ ok(Templet('<% &$_outf(sub1()); "" %>'),'Sub 1 Returns');
 ok(Templet('Begin <% &$_outf(&sub1()); "" %> End'),'Begin Sub 1 Returns End');
 ok(Templet('<% &switch1() %><%C1%>Choice 1<%"END_SWITCH1"%><%C2%>Choice2<%END_SWITCH1%>'),'Choice2');
 ok(Templet('Begin <% &switch1() %><%C1%>Choice 1<%"END_SWITCH1"%><%C2%>Choice2<%END_SWITCH1%> End'),'Begin Choice2 End');
+ok(Templet('Begin <%*SKIP%> This is skipped <%SKIP%> End'),'Begin  End');
+ok(Templet('Begin <% "*SECTION2" %>This is skipped<%*SECTION2%>This is included<%SECTION2%> End'),'Begin This is included End');

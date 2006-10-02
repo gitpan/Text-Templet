@@ -1,7 +1,20 @@
-Change log to Text::Templet (Formerly Magic.pm)
+Change log for Text::Templet
 
 For the most recent updates and source code for all versions,
 see http://www.denispetrov.com/magic/
+
+2.5
+    * Added asterisk labels functionality - see documentation
+    * Changed license from GPL to Perl Artistic License
+    * Minor performance improvements
+
+2.4
+    * Updated documentation and change log.
+    * In case of an error in a code section of the template,
+    returns empty string instead of '1'
+2.3
+    * In non-void context, Templet will return the processed
+    template instead of printing it to the default output
 
 2.1
     * Updated POD text in the module
