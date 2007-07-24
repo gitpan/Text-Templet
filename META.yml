@@ -2,8 +2,7 @@
 name: Text-Templet
 abstract: Lightweight Text Template Processor
 version: 2.8
-author:
-  Denis Petrov <denispetrov@yahoo.com>
+author: Denis Petrov <denispetrov@yahoo.com>
 license: perl
 requires:
   perl: 5.006
