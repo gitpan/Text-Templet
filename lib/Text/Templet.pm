@@ -1,5 +1,5 @@
 # Copyright (c) 2004, 2005, 2006 Denis Petrov
-# $Id: Templet.pm,v 2.5 2006/10/02 19:08:15 cvs Exp $
+# $Id: Templet.pm,v 2.8 2007/07/23 22:30:22 cvs Exp $
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
@@ -18,12 +18,12 @@ BEGIN {
     use Exporter   ();
     our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-    ($VERSION) = '$Revision: 2.5 $' =~ /\$Revision: (\S+)/;
-    
+    ($VERSION) = '$Revision: 2.8 $' =~ /\$Revision: (\S+)/;
+
     @ISA         = qw(Exporter);
     @EXPORT      = qw( &Templet );
     %EXPORT_TAGS = ( );
-    @EXPORT_OK   = qw( );
+    @EXPORT_OK   = qw( $HeaderCallback );
 }
 
 ### variable names are strange to reduce the risk of them being used in a template
@@ -33,7 +33,7 @@ our @_tpl_parsed;
 our $_isect;
 our $_nsect;
 
-our $_tpl_warning = '';
+our @_tpl_warning = ();
 
 our %_labels; # label section numbers
 
@@ -43,9 +43,14 @@ our $_outt;
 
 our $_label_regexp = "\\*?[a-zA-z_][a-zA-z0-9_]*";
 
+our $_first_outf;
+our $HeaderCallback = sub {};
+
+our $_use_package;
+
 sub _tpl_warn
 {
-    $_tpl_warning = $_[0];
+    push @_tpl_warning, $_[0];
 }
 
 # parameters: section type ('code' or 'text' or 'label')
@@ -53,8 +58,12 @@ sub _print_tpl_warning
 {
    my $lc = &_count_lines();
    my (undef,$fn,$fl) = caller(1);
-   print STDERR "Templet warning: $fn:$fl, $_[0] section beginning at line $lc(".($fl+$lc).")\n$_tpl_warning\n";
-   $_tpl_warning = '';
+   print STDERR "Templet warning: $fn:$fl, $_[0] section beginning at line $lc(".($fl+$lc).")\n";
+   foreach(@_tpl_warning)
+   {
+     print STDERR $_ . "\n";
+   };
+   @_tpl_warning = ();
 }
 
 # \@_tpl_parsed, $currentpos
@@ -76,28 +85,28 @@ sub _count_lines
 sub _jump_to($)
 {
   my ($lname) = @_;
-  if ( exists $_labels{$lname} )  
+  if ( exists $_labels{$lname} )
   {
     $_isect = $_labels{$lname};
   }
-  else 
+  else
   { #trace labels forward
     my $j;
     my $found_label = undef;
-    for ( $j = $_isect+1; $j < $_nsect; $j++ ) 
+    for ( $j = $_isect+1; $j < $_nsect; $j++ )
     {
-      if ( $_tpl_parsed[$j] =~ /<%($_label_regexp)%>/ ) 
+      if ( $_tpl_parsed[$j] =~ /<%($_label_regexp)%>/ )
       {
         if ( exists($_labels{$1}) && $_labels{$1} != $j )
         {
-           $_tpl_warning = "Found duplicate label '$1', it has been ignored";
+           push @_tpl_warning, "Found duplicate label '$1', it has been ignored";
            &_print_tpl_warning('label');
         }
         else
         {
           $_labels{$1} = $j;
         }
-        if ( $1 eq $lname ) 
+        if ( $1 eq $lname )
         {
           $_isect = $j;
           $found_label = 1;
@@ -107,45 +116,59 @@ sub _jump_to($)
     }
     if ( !$found_label )
     {
-      $_tpl_warning = "A template code section returned label '$lname'"
-                     . " which does not exist in the template";
+      push @_tpl_warning, "A template code section returned label '$lname'"
+                      . " which does not exist in the template";
       &_print_tpl_warning('code');
-      
+
       return undef;
     }
   }
   return 1;
 }
 
+
+sub Use($)
+{
+  $_use_package = $_[0];
+  eval("use $_use_package;");
+}
+
+
 sub Templet
 {
   my ($_caller_package,undef,undef) = caller;
 
   ### Make Templet re-entrant by saving values of package variables
-  local(@_tpl_parsed,$_isect,$_nsect,%_labels,$_tpl_warning,$_outf,$_outt);
+  local(@_tpl_parsed,$_isect,$_nsect,%_labels,@_tpl_warning,$_outf,$_outt,$_first_outf);
 
   $_outt = '';
   ### Return processed template in non-void context, otherwise print it
-  $_outf = defined(wantarray) ? sub{$_outt .= $_[0]} : sub{print @_};
+  $_outf = defined(wantarray) ?
+         sub{&$HeaderCallback(),$_first_outf = 0 if $_first_outf;$_outt .= $_[0]}
+       : sub{&$HeaderCallback(),$_first_outf = 0 if $_first_outf;print @_};
+
+  $_use_package = $_[1] || $_use_package || $_caller_package;
+
+  $_first_outf = 1;
 
   @_tpl_parsed = ('<%_%>' . $_[0] . '<%END%>') =~ /(<%.+?(?=%>)%>)(.*?)(?=<%|$)/gs;
 
   $_isect = 0; # template section iterator
   $_nsect = scalar(@_tpl_parsed); # number of sections
-  for ( $_isect = 0; $_isect < $_nsect; $_isect++ ) 
+  for ( $_isect = 0; $_isect < $_nsect; $_isect++ )
   {
     my $_sect_text = $_tpl_parsed[$_isect];
-    if ( $_sect_text =~ /<%($_label_regexp)%>/ ) 
+    if ( $_sect_text =~ /<%($_label_regexp)%>/ )
     {
       if ( exists($_labels{$1}) && $_labels{$1} != $_isect )
       {
-         $_tpl_warning = "Found duplicate label '$1', it has been ignored";
+         push @_tpl_warning, "Found duplicate label '$1', it has been ignored";
          &_print_tpl_warning('label');
       }
       else
       {
         $_labels{$1} = $_isect;
-        
+
         if ( substr($1,0,1) eq '*' )
         {
           # skip to the label with the same name without asterisk
@@ -153,47 +176,48 @@ sub Templet
         }
       }
     }
-    elsif ( $_sect_text =~ /<%(.+)%>/s ) 
+    elsif ( $_sect_text =~ /<%(.+)%>/s )
     {
       my $_save_sig = $SIG{__WARN__};
       $SIG{__WARN__} = \&_tpl_warn;
-      my $_result = eval("package $_caller_package;".$1);
+      my $_result = eval("package $_use_package;".$1);
       $SIG{__WARN__} = $_save_sig;
-      &_print_tpl_warning('code') if $_tpl_warning;
+      &_print_tpl_warning('code') if scalar(@_tpl_warning) > 0;
       if ( !defined($_result) )
       {
           if ( $@ )
           {
-              $_tpl_warning = $@;
+              push @_tpl_warning, $@;
               &_print_tpl_warning('code');
               print STDERR "Processing of this template has stopped.\n";
-              return '';
+              die $@;
           }
           # else there's no error, just discard the undef and move on
       }
-      elsif ( $_result =~ /$_label_regexp/ ) 
+      elsif ( $_result =~ /$_label_regexp/ )
       {
         _jump_to($_result);
       }
     }
-    else 
+    elsif ( $_sect_text ne '' )
     {
       $_sect_text =~ s/\"/\\\"/g;
       my $_save_sig = $SIG{__WARN__};
       $SIG{__WARN__} = \&_tpl_warn;
-      my $_result = eval("package $_caller_package;"."\"".$_sect_text."\"");
+      my $_result = eval("package $_use_package;"."\"".$_sect_text."\"");
       $SIG{__WARN__} = $_save_sig;
       if ( !defined($_result) )
       {
           if ( $@ )
           {
-              $_tpl_warning = $@;
+              push @_tpl_warning, $@;
+              &$_outf( @_tpl_warning );
               &_print_tpl_warning('text');
           }
       }
       else
       {
-          &_print_tpl_warning('text') if $_tpl_warning;
+          &_print_tpl_warning('text') if scalar(@_tpl_warning) > 0;
           &$_outf( $_result );
       }
     }
@@ -216,7 +240,7 @@ sub Templet
 
 Text::Templet - template processor built using Perl's eval()
 
-=head1 SYNOPSIS 
+=head1 SYNOPSIS
 
 B<Iterating through a list>
 
@@ -235,6 +259,26 @@ B<Iterating through a list>
  $counter: $dataref->[$counter]
  </div>
  <%"SONG_LIST"%><%SONG_LIST_END%>
+ </body>
+ EOT
+ );
+
+B<Iterating through a list using asterisk label>
+
+ use Text::Templet;
+ use vars qw( $dataref $counter );
+ $dataref = ["Money For Nothing","Communique","Sultans Of Swing"];
+
+ Templet(<<'EOT'
+ Content-type: text/html
+
+ <body>
+ <% $counter = -1 %>
+ <%SONG_LIST%><% $counter++; return "*SONG_LIST" if $counter >= scalar(@$dataref); '' %>
+ <div>
+ $counter: $dataref->[$counter]
+ </div>
+ <%*SONG_LIST%>
  </body>
  EOT
  );
@@ -281,7 +325,7 @@ B<Switch-like construct>
  use vars qw($super_user);
  $select = 1;
 
- $select = 0 if ( int($select) < 0 or int($select) > 2 );  
+ $select = 0 if ( int($select) < 0 or int($select) > 2 );
 
  Templet(<<'EOT'
  Content-type: text/html
@@ -401,7 +445,7 @@ B<Includes>
 
  sub header
  {
-   Templet('<html><head><title>$title</title></head><body>'); 
+   Templet('<html><head><title>$title</title></head><body>');
    ''
  }
 
@@ -414,7 +458,7 @@ B<Includes>
 
  Templet(<<'EOT'
  Content-type: text/html
- 
+
  <% header() %>
  <h1>$title</h1>
  <div>
@@ -429,7 +473,7 @@ B<A structured application>
  use CGI;
  use Text::Templet;
  use vars qw($body_sub $title);
- 
+
  $Q = new CGI;
 
  if ( $Q->param('p') eq 'page1' )
@@ -437,7 +481,7 @@ B<A structured application>
    $title = 'Page 1';
    $body_sub = sub
    {
-     Templet('Page 1'); 
+     Templet('Page 1');
    }
  }
  elseif ( $Q->param('p') eq 'page2' )
@@ -445,7 +489,7 @@ B<A structured application>
    $title = 'Page 2';
    $body_sub = sub
    {
-     Templet('Page 2'); 
+     Templet('Page 2');
    }
  }
  else
@@ -453,19 +497,67 @@ B<A structured application>
    $title = 'Default Page';
    $body_sub = sub
    {
-     Templet('Default Page'); 
+     Templet('Default Page');
    }
  }
 
  Templet(<<'EOT'
  Content-type: text/html
- 
+
  <html><head><title>$title</title></head>
  <body>
  <h1>$title</h1>
  <div>
  <% &$body_sub(); '' %>
  </div>
+ </body></html>
+ EOT
+ );
+
+B<Using $Text::Templet::HeaderCallback>
+
+ use CGI;
+ use Text::Templet;
+ use vars qw($redirect $title);
+
+ $Q = new CGI;
+
+ $Text::Templet::HeaderCallback = sub {print "Content-type: text/html\r\n\r\n"};
+
+ $redirect = 'http://www.denispetrov.com/';
+ $title = 'This page is never seen because it always redurects the browser to www.denispetrov.com';
+
+ Templet(<<'EOT'
+ <% $Q->print($Q->redirect(-uri=>$redirect)),exit() if $redirect; '' %>
+ <html><head><title>$title</title></head>
+ <body>
+ <h1>$title</h1>
+ </body></html>
+ EOT
+ );
+
+B<Using &Text::Templet::Use>
+
+File Module.pm:
+
+ package Module;
+
+ use vars qw($title);
+
+ $title = 'Page Title';
+
+File script.pl:
+
+ use lib qw(.);
+ use Text::Templet;
+
+ $Text::Templet::HeaderCallback = sub {print "Content-type: text/html\r\n\r\n"};
+
+ Templet(<<'EOT'
+ <% Text::Templet::Use("Module");'' %>
+ <html><head><title>$title</title></head>
+ <body>
+ <h1>$title</h1>
  </body></html>
  EOT
  );
@@ -501,7 +593,7 @@ value stored in C<$_outt>.
 
 Sections with text inside C<< <% %> >> are handled in two different
 ways. If the text contains only alphanumeric characters without
-spaces, and the first character is an asterisk, a letter or an underscore, 
+spaces, and the first character is an asterisk, a letter or an underscore,
 C<Text::Templet> recognizes the section as a "label", which is then
 added to the internal list of labels. Labels are used to pass
 template processing point to the section immediately following the
@@ -543,21 +635,45 @@ but are contained in the lexical scope of C<Templet.pm>. This means that
 lexical variables declared with C<my>, C<our> or C<local> are inaccessible
 from "inside" the template.
 
-The following variable names are used internally by 
-C<Text::Templet> and will mask variables declared in your program, 
-making their values inaccessible in the template: C<%_labels>, 
-C<@_tpl_parsed>, C<$_tpl_warning>, C<$_label_regexp>, C<$_isect>,
+The following variable names are used internally by
+C<Text::Templet> and will mask variables declared in your program,
+making their values inaccessible in the template: C<%_labels>,
+C<@_tpl_parsed>, C<@_tpl_warning>, C<$_label_regexp>, C<$_isect>,
 C<$_nsect>, C<$_sect_text>, C<$_save_sig>, C<$_outf>, C<$_outt>
 
-=head2 EXPORTS
+=head2 FUNCTIONS
 
-C<&Templet($)>
+C<&Templet()>
 
-Takes template text as the argument. In void context, prints processing
-result to the default output, otherwise accumulates it in internal
-variable C<$_outt> and returns it to the caller. Returns an empty string
-if an error occurred in a code section of the template. You should
-check the server's error log to find out which section it is.
+Exported. Takes one or two arguments: first argument is the template text, second
+argument is optional and contains the name of the package to use when
+evaluating section text and code.
+
+In void context, prints processing result to the default output,
+otherwise accumulates it in internal variable C<$_outt> and returns
+it to the caller. If a compilation error occurs in a code section of the
+template, calls die() with the error code, which allows you to put Templet()
+call into a try block to process compilation errors. You should check the
+server's error log to find out which section it is.
+
+C<&Text::Templet::Use()>
+
+Accepts one argument containing the name of the package to use when evaluating
+template sections. The value will be used in each call to each code and text
+section to set the context for any code and variables used in the template.
+This function can be called either prior to C<Templet()> call or from within
+the template text, in which case the package name will be used from the code
+section containing the call onwards until the end of the template
+or the next call to C<Text::Templet::Use()>.
+
+=head2 PUBLIC VARIABLES
+
+C<$Text::Templet::HeaderCallback>
+
+A reference to a function that sends HTTP or any other header before any
+output from the template occurs. Provides a way to send redirection headers
+from the template when C<Templet()> is called in void context. See
+Using $Text::Templet::HeaderCallback example.
 
 =head1 NOTES AND TIPS
 
@@ -576,7 +692,7 @@ database record being queried contain NULL. This issue can be
 resolved either on the data level, by ensuring that there are no
 NULL values stored in the database, or on the script level by
 replacing undefined values returned from the database with empty
-strings. The simple form example above deals with this problem by 
+strings. The simple form example above deals with this problem by
 using C<||> operator during the call to C<&CGI::escapeHTML> to assign an
 empty string to the variable if it evaluates to false.
 
@@ -612,6 +728,13 @@ priority right now.
 
 =item * C<Text::Templet>'s version number is the CVS revision of
 the file, which means some numbers may get skipped.
+
+=item * Call Templet() from void context whenever possible to improve
+performance. When called from void context all output from the template
+is printed as soon as it is processed without first accumulating it
+in a buffer, which saves memory and when used in a web application,
+allows the browser to start rendering the processed page as soon as
+the web server has accumulated enough data to send to the browser.
 
 =back
 

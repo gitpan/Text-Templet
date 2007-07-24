@@ -3,6 +3,11 @@ Change log for Text::Templet
 For the most recent updates and source code for all versions,
 see http://www.denispetrov.com/magic/
 
+2.8
+    * Added Use() function and HeaderCallback callback
+    * Bugfix: multiple warnings now correctly propagated
+    * Processing stops and die() is called if a code section contains errors
+
 2.5
     * Added asterisk labels functionality - see documentation
     * Changed license from GPL to Perl Artistic License
@@ -26,7 +31,7 @@ see http://www.denispetrov.com/magic/
 number update
     * Bugfix: renamed internal Magic variables to reduce the
 chance of them clashing with variables used in a template
- 
+
 1.16
 
     * I made Magic() re-entry safe, which allows parts of the
