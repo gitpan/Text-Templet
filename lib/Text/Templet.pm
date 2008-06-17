@@ -1,5 +1,5 @@
 # Copyright (c) 2004, 2005, 2006 Denis Petrov
-# $Id: Templet.pm,v 2.8 2007/07/23 22:30:22 cvs Exp $
+# $Id: Templet.pm,v 2.9 2008/06/17 01:47:57 cvs Exp $
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
@@ -18,7 +18,7 @@ BEGIN {
     use Exporter   ();
     our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-    ($VERSION) = '$Revision: 2.8 $' =~ /\$Revision: (\S+)/;
+    ($VERSION) = '$Revision: 2.9 $' =~ /\$Revision: (\S+)/;
 
     @ISA         = qw(Exporter);
     @EXPORT      = qw( &Templet );
@@ -46,6 +46,7 @@ our $_label_regexp = "\\*?[a-zA-z_][a-zA-z0-9_]*";
 our $_first_outf;
 our $HeaderCallback = sub {};
 
+our $_use_package1;
 our $_use_package;
 
 sub _tpl_warn
@@ -129,8 +130,8 @@ sub _jump_to($)
 
 sub Use($)
 {
-  $_use_package = $_[0];
-  eval("use $_use_package;");
+  $_use_package1 = $_[0];
+  eval("use $_use_package1;") if $_use_package1;
 }
 
 
@@ -147,7 +148,7 @@ sub Templet
          sub{&$HeaderCallback(),$_first_outf = 0 if $_first_outf;$_outt .= $_[0]}
        : sub{&$HeaderCallback(),$_first_outf = 0 if $_first_outf;print @_};
 
-  $_use_package = $_[1] || $_use_package || $_caller_package;
+  local $_use_package = $_[1] || $_use_package1 || $_caller_package;
 
   $_first_outf = 1;
 
@@ -665,6 +666,9 @@ This function can be called either prior to C<Templet()> call or from within
 the template text, in which case the package name will be used from the code
 section containing the call onwards until the end of the template
 or the next call to C<Text::Templet::Use()>.
+
+To cancel, call C<Text::Templet::Use(undef)>. Package specified in the call to
+Templet() takes precedence over package specified in C<Use()>.
 
 =head2 PUBLIC VARIABLES
 

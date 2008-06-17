@@ -3,6 +3,9 @@ Change log for Text::Templet
 For the most recent updates and source code for all versions,
 see http://www.denispetrov.com/magic/
 
+2.9
+    * Bugfix: package context now honored in recursive calls to Templet()
+
 2.8
     * Added Use() function and HeaderCallback callback
     * Bugfix: multiple warnings now correctly propagated
