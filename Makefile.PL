@@ -7,5 +7,5 @@ WriteMakefile(
     'PREREQ_PM'		=> {},
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM => 'lib/Text/Templet.pm',
-       AUTHOR     => 'Denis Petrov <denispetrov@yahoo.com>') : ()),
+       AUTHOR     => 'Denis Petrov <dp@denispetrov.com>') : ()),
 );

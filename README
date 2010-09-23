@@ -1,14 +1,12 @@
 Text::Templet
 =============
 
-Text::Templet implements a very efficient and fast template 
+Text::Templet implements a very small, efficient and fast template 
 processor that allows you to embed Perl variables and snippets of Perl 
-code directly into HTML, XML or any other text. Text::Templet is uniquie 
-in that it employs Perl's eval() function for features that other 
-template systems implement using regular expressions, introducing a whole 
-new syntax, with complexity proportional to the system's sophistication. 
-Text::Templet uses Perl syntax for all its functionality, which greatly 
-simplifies and speeds up processing of the template.
+code directly into HTML, XML or any other text. The module contains only
+about 50 lines of actual code. Text::Templet uses Perl syntax for all
+its functionality, which means you don't need to learn an entire new
+platform to use it.
 
 INSTALLATION
 

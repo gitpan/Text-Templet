@@ -3,6 +3,11 @@ Change log for Text::Templet
 For the most recent updates and source code for all versions,
 see http://www.denispetrov.com/magic/
 
+3.0
+    * Complete rework: reduced the amount of code by 75% TO ~50 lines
+    * Improved performance by 500-1000%, depending on template
+    * HeaderCallback deprecated and removed
+
 2.9
     * Bugfix: package context now honored in recursive calls to Templet()
 
